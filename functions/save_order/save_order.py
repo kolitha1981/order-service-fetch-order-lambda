@@ -4,8 +4,6 @@ from os import environ
 from uuid import uuid4
 import boto3
 
-from functions.fetch_order.fetch_order import HTTP_STATUS_CODE_OK
-
 dynamo_db_table = None
 
 HTTP_STATUS_CODE_OK = 200

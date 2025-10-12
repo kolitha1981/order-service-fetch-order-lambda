@@ -1,0 +1,75 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12   # Change to the Python version your project needs
+    commands:
+      - echo "Installing python dependencies for order service ..."
+      - pip install --upgrade pip
+      - pip install -r tests/requirements.txt
+
+  pre_build:
+    commands:
+      - echo "Running the prebuild commands for order service ........."
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Account ID = $ACCOUNT_ID"
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Region= $AWS_REGION"
+
+  build:
+    commands:
+      - echo "Running the tests for order service .................."
+      - pytest tests/
+
+  post_build:
+    commands:
+      - echo "Build completed ...................."
+      - echo "Starting Lambda function deployment .................."
+      - mkdir -p lambda-deployment
+      - |
+        for func_dir in functions/*/; do
+          if [ -d "$func_dir" ]; then
+            # Extract function name from directory path
+            func_name=$(basename "$func_dir")
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@  Processing function: $func_name"            
+            # Create a temporary directory for this function
+            temp_dir="lambda-deployment/$func_name"
+            mkdir -p "$temp_dir"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@@ Created temporary directory: $temp_dir"
+            # Copy function files to temp directory
+            cp -r "$func_dir"* "$temp_dir/"            
+            # Install dependencies in the temp directory
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Installing dependencies for $func_name..."
+            pip install -r "$temp_dir/requirements.txt" -t "$temp_dir/"
+            
+            # Create zip file
+            zip_file="lambda-deployment/${func_name}.zip"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file"
+            (cd "$temp_dir" && zip -r "../../${func_name}.zip" .)
+            
+            # Deploy Lambda function
+            echo "Deploying Lambda function: $func_name"
+            
+            # Check if function exists
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist, creating new function..."
+            aws lambda create-function \
+              --function-name "$func_name" \
+              --runtime python3.12 \
+              --role "arn:aws:iam::${ACCOUNT_ID}:role/lambda-execution-role" \
+              --handler "${func_name//_/-}.handler" \
+              --zip-file "fileb://lambda-deployment/${func_name}.zip" \
+              --timeout 30 \
+              --memory-size 256 \
+              --region "$AWS_REGION" \
+              --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
+              --description "Order service Lambda function for $func_name"         
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
+            echo "----------------------------------------"
+          fi
+        done
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@@@ Lambda function deployment completed .................."
+artifacts:
+  files:
+    - "imagedefinitions.json"
+    - "taskdef.json"
+    - "appspec.yml"
