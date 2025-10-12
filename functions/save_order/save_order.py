@@ -1,43 +1,49 @@
-import json
-import boto3
-from os import environ
 from datetime import datetime, timezone
-from uuid import uuid4
 from logging import getLogger, INFO
+from os import environ
+from uuid import uuid4
+import boto3
 
-# Initialize DynamoDB client
-dynamodb = boto3.resource('dynamodb')
-table_name = None
-table = dynamodb.Table(table_name)
+from functions.fetch_order.fetch_order import HTTP_STATUS_CODE_OK
+
+dynamo_db_table = None
+
+HTTP_STATUS_CODE_OK = 200
+HTTP_STATUS_CODE_INTERNAL_SERVER_ERROR = 500
+
 logger = getLogger()
 logger.setLevel(INFO)
-
 class SaveOrderFailedException(Exception):
     pass
 
 def lambda_handler(event, context):
-    global table_name
-    if table_name is None:
-        table_name = environ.get('ORDERS_TABLE_NAME', 'Orders')
+    logger.info(f"Executing save_order with event: {event}")
+    global dynamo_db_table
+    if dynamo_db_table is None:
+        dynamodb_client = boto3.resource('dynamodb')
+        dynamo_db_table_name = environ.get('ORDERS_TABLE_NAME', 'Orders')
+        dynamo_db_table = dynamodb_client.Table(dynamo_db_table_name)
     try:
         order_id = event.get('order_id', str(uuid4())).strip()
         order_description = event.get('order_description', 'Test order description').strip()
         created_date = datetime.now(timezone.utc).isoformat()
         last_updated_date = datetime.now(timezone.utc).isoformat()
-        # Prepare the item to save
         order_item = {
             'order_id': order_id,
             'order_description': order_description,
             'created_date': created_date,
             'last_updated_date': last_updated_date
         }
-        response = table.put_item(Item=order_item)
+        response = dynamo_db_table.put_item(Item=order_item)
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             error_message = f"Failed to save order into dynamo db table: {response}"
             logger.error(error_message)
-            raise SaveOrderFailedException(error_message)
+            return {
+                'statusCode': HTTP_STATUS_CODE_INTERNAL_SERVER_ERROR,
+                'body': error_message
+            }
         return {
-            'statusCode': 200,
+            'statusCode': HTTP_STATUS_CODE_OK,
             'headers': {
                 'Content-Type': 'application/json',
                 'Access-Control-Allow-Origin': '*'
@@ -48,7 +54,7 @@ def lambda_handler(event, context):
         error_message = f"Exception occurred while saving order into dynamo db table: {str(e)}"
         logger.error(error_message)
         return {
-            'statusCode': 500,
+            'statusCode': HTTP_STATUS_CODE_INTERNAL_SERVER_ERROR,
             'body': error_message
         }
 
