@@ -62,7 +62,52 @@ phases:
               --memory-size 256 \
               --region "$AWS_REGION" \
               --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
-              --description "Order service Lambda function for $func_name"         
+              --description "Order service Lambda function for $func_name"
+            # Version management logic
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Managing versions for $func_name..."
+            # Check if function exists and get the latest version
+            if aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1; then
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, checking latest version..."              
+              # Get the latest version number
+              LATEST_VERSION=$(aws lambda list-versions-by-function \
+                --function-name "$func_name" \
+                --region "$AWS_REGION" \
+                --query 'Versions[?Version!=`$LATEST`].Version | max(@)' \
+                --output text)              
+              if [ "$LATEST_VERSION" = "None" ] || [ -z "$LATEST_VERSION" ]; then
+                NEW_VERSION=1
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  No versions found, setting version to 1"
+              else
+                NEW_VERSION=$((LATEST_VERSION + 1))
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Latest version is $LATEST_VERSION, incrementing to $NEW_VERSION"
+              fi
+            else
+              NEW_VERSION=1
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name is new, setting version to 1"
+            fi            
+            # Publish new version
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name..."
+            PUBLISHED_VERSION=$(aws lambda publish-version \
+              --function-name "$func_name" \
+              --description "Version $NEW_VERSION of $func_name - Deployed via CodeBuild" \
+              --region "$AWS_REGION" \
+              --query 'Version' \
+              --output text)            
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"            
+            # Optional: Update function alias to point to new version
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating latest alias to point to version $PUBLISHED_VERSION..."
+            aws lambda update-alias \
+              --function-name "$func_name" \
+              --name "latest" \
+              --function-version "$PUBLISHED_VERSION" \
+              --region "$AWS_REGION" 2>/dev/null || \
+            aws lambda create-alias \
+              --function-name "$func_name" \
+              --name "latest" \
+              --function-version "$PUBLISHED_VERSION" \
+              --description "Live version of $func_name" \
+              --region "$AWS_REGION"            
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
             echo "----------------------------------------"
           fi
