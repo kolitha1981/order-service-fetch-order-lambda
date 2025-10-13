@@ -43,7 +43,7 @@ def handler(event, context):
             'body': response['Item']
         }
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error(f"Fetching the order for order id {order_id} failed due to {str(e)}")
         return {
             'statusCode': HTTP_STATUS_CODE_INTERNAL_SERVER_ERROR,
             'body': f"Fetching the order for order id {order_id} failed due to {str(e)}"
