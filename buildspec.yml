@@ -55,10 +55,10 @@ phases:
             aws lambda create-function \
               --function-name "$func_name" \
               --runtime python3.12 \
-              --role "arn:aws:iam::${ACCOUNT_ID}:role/lambda-execution-role" \
+              --role "arn:aws:iam::${ACCOUNT_ID}:role/before-after-allow-traffic-role" \
               --handler "${func_name//_/-}.handler" \
               --zip-file "fileb://lambda-deployment/${func_name}.zip" \
-              --timeout 30 \
+              --timeout 120 \
               --memory-size 256 \
               --region "$AWS_REGION" \
               --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
