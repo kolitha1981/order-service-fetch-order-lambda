@@ -47,44 +47,62 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file"
             (cd "$temp_dir" && zip -r "../../${func_name}.zip" .)
             
+            # Convert function name to handler format (replace _ with -)
+            handler_name=$(echo "$func_name" | tr '_' '-')
+            
             # Deploy Lambda function
             echo "Deploying Lambda function: $func_name"
             
             # Check if function exists
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist, creating new function..."
-            aws lambda create-function \
-              --function-name "$func_name" \
-              --runtime python3.12 \
-              --role "arn:aws:iam::${ACCOUNT_ID}:role/before-after-allow-traffic-role" \
-              --handler "${func_name//_/-}.handler" \
-              --zip-file "fileb://lambda-deployment/${func_name}.zip" \
-              --timeout 120 \
-              --memory-size 256 \
-              --region "$AWS_REGION" \
-              --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
-              --description "Order service Lambda function for $func_name"
+            if aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1; then
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, updating function code..."
+              aws lambda update-function-code \
+                --function-name "$func_name" \
+                --zip-file "fileb://lambda-deployment/${func_name}.zip" \
+                --region "$AWS_REGION"
+              
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function update to complete..."
+              aws lambda wait function-updated \
+                --function-name "$func_name" \
+                --region "$AWS_REGION"
+            else
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist, creating new function..."
+              aws lambda create-function \
+                --function-name "$func_name" \
+                --runtime python3.12 \
+                --role "arn:aws:iam::${ACCOUNT_ID}:role/before-after-allow-traffic-role" \
+                --handler "${handler_name}.handler" \
+                --zip-file "fileb://lambda-deployment/${func_name}.zip" \
+                --timeout 120 \
+                --memory-size 256 \
+                --region "$AWS_REGION" \
+                --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
+                --description "Order service Lambda function for $func_name"
+              
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
+              aws lambda wait function-active \
+                --function-name "$func_name" \
+                --region "$AWS_REGION"
+            fi
+            
             # Version management logic
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Managing versions for $func_name..."
-            # Check if function exists and get the latest version
-            if aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1; then
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, checking latest version..."              
-              # Get the latest version number
-              LATEST_VERSION=$(aws lambda list-versions-by-function \
-                --function-name "$func_name" \
-                --region "$AWS_REGION" \
-                --query 'Versions[?Version!=`$LATEST`].Version | max(@)' \
-                --output text)              
-              if [ "$LATEST_VERSION" = "None" ] || [ -z "$LATEST_VERSION" ]; then
-                NEW_VERSION=1
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  No versions found, setting version to 1"
-              else
-                NEW_VERSION=$((LATEST_VERSION + 1))
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Latest version is $LATEST_VERSION, incrementing to $NEW_VERSION"
-              fi
-            else
+            
+            # Get the latest version number
+            LATEST_VERSION=$(aws lambda list-versions-by-function \
+              --function-name "$func_name" \
+              --region "$AWS_REGION" \
+              --query 'Versions[?Version!=`$LATEST`].Version | max(@)' \
+              --output text)
+            
+            if [ "$LATEST_VERSION" = "None" ] || [ -z "$LATEST_VERSION" ]; then
               NEW_VERSION=1
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name is new, setting version to 1"
-            fi            
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  No versions found, setting version to 1"
+            else
+              NEW_VERSION=$((LATEST_VERSION + 1))
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Latest version is $LATEST_VERSION, incrementing to $NEW_VERSION"
+            fi
+            
             # Publish new version
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name..."
             PUBLISHED_VERSION=$(aws lambda publish-version \
@@ -92,10 +110,28 @@ phases:
               --description "Version $NEW_VERSION of $func_name - Deployed via CodeBuild" \
               --region "$AWS_REGION" \
               --query 'Version' \
-              --output text)            
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"            
-            # Optional: Update function alias to point to new version
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating latest alias to point to version $PUBLISHED_VERSION..."
+              --output text)
+            
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"
+            
+            # Update or create alias to point to new version
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating 'latest' alias to point to version $PUBLISHED_VERSION..."
+            if aws lambda get-alias --function-name "$func_name" --name latest --region "$AWS_REGION" > /dev/null 2>&1; then
+              aws lambda update-alias \
+                --function-name "$func_name" \
+                --name latest \
+                --function-version "$PUBLISHED_VERSION" \
+                --region "$AWS_REGION"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to version $PUBLISHED_VERSION"
+            else
+              aws lambda create-alias \
+                --function-name "$func_name" \
+                --name latest \
+                --function-version "$PUBLISHED_VERSION" \
+                --region "$AWS_REGION"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Created alias 'latest' pointing to version $PUBLISHED_VERSION"
+            fi
+            
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
             echo "----------------------------------------"
