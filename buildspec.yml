@@ -47,6 +47,17 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file"
             (cd "$temp_dir" && zip -r "../../${func_name}.zip" .)
             
+            # Verify zip file was created
+            if [ ! -f "$zip_file" ]; then
+              echo "ERROR: Zip file not created at $zip_file"
+              exit 1
+            fi
+            
+            # Get absolute path for zip file
+            zip_file_abs=$(pwd)"/lambda-deployment/${func_name}.zip"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Zip file absolute path: $zip_file_abs"
+            ls -lh "$zip_file_abs"
+            
             # Convert function name to handler format (replace _ with -)
             handler_name=$(echo "$func_name" | tr '_' '-')
             
@@ -58,7 +69,7 @@ phases:
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, updating function code..."
               aws lambda update-function-code \
                 --function-name "$func_name" \
-                --zip-file "fileb://lambda-deployment/${func_name}.zip" \
+                --zip-file "fileb://${zip_file_abs}" \
                 --region "$AWS_REGION"
               
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function update to complete..."
@@ -72,7 +83,7 @@ phases:
                 --runtime python3.12 \
                 --role "arn:aws:iam::${ACCOUNT_ID}:role/before-after-allow-traffic-role" \
                 --handler "${handler_name}.handler" \
-                --zip-file "fileb://lambda-deployment/${func_name}.zip" \
+                --zip-file "fileb://${zip_file_abs}" \
                 --timeout 120 \
                 --memory-size 256 \
                 --region "$AWS_REGION" \
