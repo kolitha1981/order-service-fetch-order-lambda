@@ -96,17 +96,6 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"            
             # Optional: Update function alias to point to new version
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating latest alias to point to version $PUBLISHED_VERSION..."
-#            aws lambda update-alias \
-#              --function-name "$func_name" \
-#              --name "latest" \
-#              --function-version "$PUBLISHED_VERSION" \
-#              --region "$AWS_REGION" 2>/dev/null || \
-#            aws lambda create-alias \
-#              --function-name "$func_name" \
-#              --name "latest" \
-#              --function-version "$PUBLISHED_VERSION" \
-#              --description "Live version of $func_name" \
-#              --region "$AWS_REGION"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
             echo "----------------------------------------"
