@@ -143,7 +143,14 @@ phases:
             
             # Update or create alias to point to new version
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating 'latest' alias to point to version $PUBLISHED_VERSION..."
-            if aws lambda get-alias --function-name "$func_name" --name latest --region "$AWS_REGION" > /dev/null 2>&1; then
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-alias --function-name \"$func_name\" --name latest --region \"$AWS_REGION\""
+            set +e  # Don't exit on error
+            aws lambda get-alias --function-name "$func_name" --name latest --region "$AWS_REGION"
+            ALIAS_CHECK_EXIT_CODE=$?
+            set -e  # Re-enable exit on error
+            
+            if [ $ALIAS_CHECK_EXIT_CODE -eq 0 ]; then
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' exists (exit code: $ALIAS_CHECK_EXIT_CODE), updating..."
               aws lambda update-alias \
                 --function-name "$func_name" \
                 --name latest \
@@ -151,6 +158,7 @@ phases:
                 --region "$AWS_REGION"
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to version $PUBLISHED_VERSION"
             else
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' does not exist (exit code: $ALIAS_CHECK_EXIT_CODE), creating..."
               aws lambda create-alias \
                 --function-name "$func_name" \
                 --name latest \
