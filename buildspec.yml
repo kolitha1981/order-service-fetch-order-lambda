@@ -64,8 +64,23 @@ phases:
             # Deploy Lambda function
             echo "Deploying Lambda function: $func_name"
             
-            # Check if function exists
-            if aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1; then
+            # Check if function exists - use exit code
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Checking if function $func_name exists..."
+            set +e  # Don't exit on error
+            aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1
+            FUNCTION_CHECK_EXIT_CODE=$?
+            set -e  # Re-enable exit on error
+            
+            if [ $FUNCTION_CHECK_EXIT_CODE -eq 0 ]; then
+              FUNCTION_EXISTS=true
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists (exit code: $FUNCTION_CHECK_EXIT_CODE)"
+            else
+              FUNCTION_EXISTS=false
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist (exit code: $FUNCTION_CHECK_EXIT_CODE)"
+            fi
+            
+            # Update or create function based on existence check
+            if [ "$FUNCTION_EXISTS" = true ]; then
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, updating function code..."
               aws lambda update-function-code \
                 --function-name "$func_name" \
@@ -154,3 +169,4 @@ artifacts:
     - "imagedefinitions.json"
     - "taskdef.json"
     - "appspec.yml"
+
