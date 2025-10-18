@@ -44,17 +44,17 @@ phases:
             
             # Create zip file
             zip_file="lambda-deployment/${func_name}.zip"
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file"
-            (cd "$temp_dir" && zip -r "../../${func_name}.zip" .)
+            zip_file_abs="$(pwd)/lambda-deployment/${func_name}.zip"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file_abs"
+            (cd "$temp_dir" && zip -r "$zip_file_abs" .)
             
             # Verify zip file was created
-            if [ ! -f "$zip_file" ]; then
-              echo "ERROR: Zip file not created at $zip_file"
+            if [ ! -f "$zip_file_abs" ]; then
+              echo "ERROR: Zip file not created at $zip_file_abs"
               exit 1
             fi
             
             # Get absolute path for zip file
-            zip_file_abs=$(pwd)"/lambda-deployment/${func_name}.zip"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Zip file absolute path: $zip_file_abs"
             ls -lh "$zip_file_abs"
             
