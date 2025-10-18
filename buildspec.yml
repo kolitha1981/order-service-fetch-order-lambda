@@ -87,7 +87,7 @@ phases:
                 --timeout 120 \
                 --memory-size 256 \
                 --region "$AWS_REGION" \
-                --environment Variables="{TABLE_NAME=Orders,AWS_REGION=$AWS_REGION}" \
+                --environment Variables="{TABLE_NAME=Orders,DEPLOYED_AWS_REGION=$AWS_REGION}" \
                 --description "Order service Lambda function for $func_name"
               
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
