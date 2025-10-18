@@ -68,7 +68,7 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Checking if function $func_name exists..."
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-function --function-name \"$func_name\" --region \"$AWS_REGION\""
             set +e  # Don't exit on error
-            aws lambda get-function --function-name "$func_name" --region "$AWS_REGION" > /dev/null 2>&1
+            aws lambda get-function --function-name "$func_name" --region "$AWS_REGION"
             FUNCTION_CHECK_EXIT_CODE=$?
             set -e  # Re-enable exit on error
             
