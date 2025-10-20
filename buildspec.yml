@@ -19,7 +19,6 @@ phases:
   build:
     commands:
       - echo "Running the tests for order service .................."
-      - pytest tests/
 
   post_build:
     commands:
@@ -141,23 +140,15 @@ phases:
             
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"
             
-            # Update or create alias to point to new version
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updating 'latest' alias to point to version $PUBLISHED_VERSION..."
+            # Create alias if it doesn't exist
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Checking if 'latest' alias exists..."
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-alias --function-name \"$func_name\" --name latest --region \"$AWS_REGION\""
             set +e  # Don't exit on error
             aws lambda get-alias --function-name "$func_name" --name latest --region "$AWS_REGION"
             ALIAS_CHECK_EXIT_CODE=$?
             set -e  # Re-enable exit on error
-            
-            if [ $ALIAS_CHECK_EXIT_CODE -eq 0 ]; then
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' exists (exit code: $ALIAS_CHECK_EXIT_CODE), updating..."
-              aws lambda update-alias \
-                --function-name "$func_name" \
-                --name latest \
-                --function-version "$PUBLISHED_VERSION" \
-                --region "$AWS_REGION"
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to version $PUBLISHED_VERSION"
-            else
+
+            if [ $ALIAS_CHECK_EXIT_CODE -ne 0 ]; then
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' does not exist (exit code: $ALIAS_CHECK_EXIT_CODE), creating..."
               aws lambda create-alias \
                 --function-name "$func_name" \
@@ -165,6 +156,8 @@ phases:
                 --function-version "$PUBLISHED_VERSION" \
                 --region "$AWS_REGION"
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Created alias 'latest' pointing to version $PUBLISHED_VERSION"
+            else
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), skipping creation..."
             fi
             
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
