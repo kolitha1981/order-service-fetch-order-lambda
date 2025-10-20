@@ -3,17 +3,10 @@ Resources:
   - FetchOrderFunction:
       Type: AWS::Lambda::Function
       Properties:
-        Name: "fetch_order"
+        Name: "<LAMBDA_FUNCTION_NAME>"
         Alias: "latest"
-        CurrentVersion: "<FETCH_ORDER_CURRENT_VERSION>"
-        TargetVersion: "<FETCH_ORDER_PUBLISHED_VERSION>"
-  - SaveOrderFunction:
-      Type: AWS::Lambda::Function
-      Properties:
-        Name: "save_order"
-        Alias: "latest"
-        CurrentVersion: "<SAVE_ORDER_CURRENT_VERSION>"
-        TargetVersion: "<SAVE_ORDER_PUBLISHED_VERSION>"
+        CurrentVersion: "<CURRENT_VERSION>"
+        TargetVersion: "<PUBLISHED_VERSION>"
 Hooks:
   BeforeAllowTraffic:
     - Location: "check-before-allow-traffic"
