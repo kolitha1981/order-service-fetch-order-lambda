@@ -163,6 +163,15 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
             echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
             
+            # Set EXECUTE_DEPLOYMENT variable based on NEW_VERSION
+            if [ "$NEW_VERSION" -gt 1 ]; then
+              EXECUTE_DEPLOYMENT=true
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  EXECUTE_DEPLOYMENT set to: $EXECUTE_DEPLOYMENT (NEW_VERSION=$NEW_VERSION)"
+            else
+              EXECUTE_DEPLOYMENT=false
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  EXECUTE_DEPLOYMENT set to: $EXECUTE_DEPLOYMENT (NEW_VERSION=$NEW_VERSION)"
+            fi
+            
             # Update appspec.yml only if NEW_VERSION is greater than 1
             if [ "$NEW_VERSION" -gt 1 ]; then
               echo "@@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is greater than 1, updating appspec.yml..."
@@ -196,7 +205,30 @@ phases:
                 echo "@@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
               fi
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is 1, skipping appspec.yml update for initial deployment"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is 1, creating initial appspec file for $func_name..."
+              
+              # Read the appspec.yml file
+              APPSPEC_FILE="appspec.yml"
+              APPSPEC_OUTPUT_FILE="appspec_${func_name}.yml"
+              
+              if [ -f "$APPSPEC_FILE" ]; then
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Found appspec.yml, creating initial $APPSPEC_OUTPUT_FILE for $func_name..."
+                
+                # Copy appspec.yml to function-specific file
+                cp "$APPSPEC_FILE" "$APPSPEC_OUTPUT_FILE"
+                
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Initial deployment - keeping placeholders in $APPSPEC_OUTPUT_FILE"
+                
+                # For initial deployment, just replace the function name, keep version placeholders
+                sed -i "s/<LAMBDA_FUNCTION_NAME>/$func_name/g" "$APPSPEC_OUTPUT_FILE"
+                
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Created $APPSPEC_OUTPUT_FILE for initial deployment"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Contents of $APPSPEC_OUTPUT_FILE:"
+                cat "$APPSPEC_OUTPUT_FILE"
+              else
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
+              fi
             fi
             
             echo "----------------------------------------"

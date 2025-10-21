@@ -1,6 +1,6 @@
 version: 0.2
 Resources:
-  - FetchOrderFunction:
+  - OrderServiceFunction:
       Type: AWS::Lambda::Function
       Properties:
         Name: "<LAMBDA_FUNCTION_NAME>"
