@@ -38,13 +38,13 @@ phases:
             # Copy function files to temp directory
             cp -r "$func_dir"* "$temp_dir/"            
             # Install dependencies in the temp directory
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Installing dependencies for $func_name..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Installing dependencies for $func_name..."
             pip install -r "$temp_dir/requirements.txt" -t "$temp_dir/"
             
             # Create zip file
             zip_file="lambda-deployment/${func_name}.zip"
             zip_file_abs="$(pwd)/lambda-deployment/${func_name}.zip"
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file_abs"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Creating zip file: $zip_file_abs"
             (cd "$temp_dir" && zip -r "$zip_file_abs" .)
             
             # Verify zip file was created
@@ -54,7 +54,7 @@ phases:
             fi
             
             # Get absolute path for zip file
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@@  Zip file absolute path: $zip_file_abs"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Zip file absolute path: $zip_file_abs"
             ls -lh "$zip_file_abs"
             
             # Convert function name to handler format (replace _ with -)
@@ -64,8 +64,8 @@ phases:
             echo "Deploying Lambda function: $func_name"
             
             # Check if function exists - use exit code
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Checking if function $func_name exists..."
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-function --function-name \"$func_name\" --region \"$AWS_REGION\""
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Checking if function $func_name exists..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-function --function-name \"$func_name\" --region \"$AWS_REGION\""
             set +e  # Don't exit on error
             aws lambda get-function --function-name "$func_name" --region "$AWS_REGION"
             FUNCTION_CHECK_EXIT_CODE=$?
@@ -73,26 +73,26 @@ phases:
             
             if [ $FUNCTION_CHECK_EXIT_CODE -eq 0 ]; then
               FUNCTION_EXISTS=true
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists (exit code: $FUNCTION_CHECK_EXIT_CODE)"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists (exit code: $FUNCTION_CHECK_EXIT_CODE)"
             else
               FUNCTION_EXISTS=false
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist (exit code: $FUNCTION_CHECK_EXIT_CODE)"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist (exit code: $FUNCTION_CHECK_EXIT_CODE)"
             fi
             
             # Update or create function based on existence check
             if [ "$FUNCTION_EXISTS" = true ]; then
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, updating function code..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name exists, updating function code..."
               aws lambda update-function-code \
                 --function-name "$func_name" \
                 --zip-file "fileb://${zip_file_abs}" \
                 --region "$AWS_REGION"
               
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function update to complete..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function update to complete..."
               aws lambda wait function-updated \
                 --function-name "$func_name" \
                 --region "$AWS_REGION"
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist, creating new function..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function $func_name does not exist, creating new function..."
               aws lambda create-function \
                 --function-name "$func_name" \
                 --runtime python3.12 \
@@ -105,14 +105,14 @@ phases:
                 --environment Variables="{TABLE_NAME=Orders,DEPLOYED_AWS_REGION=$AWS_REGION}" \
                 --description "Order service Lambda function for $func_name"
               
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
               aws lambda wait function-active \
                 --function-name "$func_name" \
                 --region "$AWS_REGION"
             fi
             
             # Version management logic
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Managing versions for $func_name..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Managing versions for $func_name..."
             
             # Get the latest version number
             LATEST_VERSION=$(aws lambda list-versions-by-function \
@@ -123,14 +123,14 @@ phases:
             
             if [ "$LATEST_VERSION" = "None" ] || [ -z "$LATEST_VERSION" ]; then
               NEW_VERSION=1
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  No versions found, setting version to 1"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  No versions found, setting version to 1"
             else
               NEW_VERSION=$((LATEST_VERSION + 1))
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Latest version is $LATEST_VERSION, incrementing to $NEW_VERSION"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Latest version is $LATEST_VERSION, incrementing to $NEW_VERSION"
             fi
             
             # Publish new version
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name..."
             PUBLISHED_VERSION=$(aws lambda publish-version \
               --function-name "$func_name" \
               --description "Version $NEW_VERSION of $func_name - Deployed via CodeBuild" \
@@ -138,50 +138,41 @@ phases:
               --query 'Version' \
               --output text)
             
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"
             
             # Create alias if it doesn't exist
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Checking if 'latest' alias exists..."
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-alias --function-name \"$func_name\" --name latest --region \"$AWS_REGION\""
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Checking if 'latest' alias exists..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-alias --function-name \"$func_name\" --name latest --region \"$AWS_REGION\""
             set +e  # Don't exit on error
             aws lambda get-alias --function-name "$func_name" --name latest --region "$AWS_REGION"
             ALIAS_CHECK_EXIT_CODE=$?
             set -e  # Re-enable exit on error
 
             if [ $ALIAS_CHECK_EXIT_CODE -ne 0 ]; then
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' does not exist (exit code: $ALIAS_CHECK_EXIT_CODE), creating..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' does not exist (exit code: $ALIAS_CHECK_EXIT_CODE), creating..."
               aws lambda create-alias \
                 --function-name "$func_name" \
                 --name latest \
                 --function-version "$PUBLISHED_VERSION" \
                 --region "$AWS_REGION"
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Created alias 'latest' pointing to version $PUBLISHED_VERSION"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Created alias 'latest' pointing to version $PUBLISHED_VERSION"
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), skipping creation..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), skipping creation..."
             fi
             
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
-            
-            # Set EXECUTE_DEPLOYMENT variable based on NEW_VERSION
-            if [ "$NEW_VERSION" -gt 1 ]; then
-              EXECUTE_DEPLOYMENT=true
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  EXECUTE_DEPLOYMENT set to: $EXECUTE_DEPLOYMENT (NEW_VERSION=$NEW_VERSION)"
-            else
-              EXECUTE_DEPLOYMENT=false
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  EXECUTE_DEPLOYMENT set to: $EXECUTE_DEPLOYMENT (NEW_VERSION=$NEW_VERSION)"
-            fi
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@   Completed deployment for $func_name"
             
             # Update appspec.yml only if NEW_VERSION is greater than 1
             if [ "$NEW_VERSION" -gt 1 ]; then
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is greater than 1, updating appspec.yml..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is greater than 1, updating appspec.yml..."
               
               # Read the appspec.yml file
               APPSPEC_FILE="appspec.yml"
               APPSPEC_OUTPUT_FILE="appspec_${func_name}.yml"
               
               if [ -f "$APPSPEC_FILE" ]; then
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Found appspec.yml, creating $APPSPEC_OUTPUT_FILE for $func_name..."
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Found appspec.yml, creating $APPSPEC_OUTPUT_FILE for $func_name..."
                 
                 # Copy appspec.yml to function-specific file
                 cp "$APPSPEC_FILE" "$APPSPEC_OUTPUT_FILE"
@@ -189,52 +180,55 @@ phases:
                 # Calculate the previous version (CURRENT_VERSION)
                 CURRENT_VERSION=$((PUBLISHED_VERSION - 1))
                 
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name"
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Current Version: $CURRENT_VERSION"
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Published Version (Target): $PUBLISHED_VERSION"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Current Version: $CURRENT_VERSION"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Published Version (Target): $PUBLISHED_VERSION"
                 
                 # Update the function-specific appspec file with actual values
                 sed -i "s/<LAMBDA_FUNCTION_NAME>/$func_name/g" "$APPSPEC_OUTPUT_FILE"
                 sed -i "s/<CURRENT_VERSION>/$CURRENT_VERSION/g" "$APPSPEC_OUTPUT_FILE"
                 sed -i "s/<PUBLISHED_VERSION>/$PUBLISHED_VERSION/g" "$APPSPEC_OUTPUT_FILE"
                 
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Updated $APPSPEC_OUTPUT_FILE successfully"
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Contents of $APPSPEC_OUTPUT_FILE:"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updated $APPSPEC_OUTPUT_FILE successfully"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Contents of $APPSPEC_OUTPUT_FILE:"
                 cat "$APPSPEC_OUTPUT_FILE"
               else
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
               fi
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is 1, creating initial appspec file for $func_name..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  NEW_VERSION ($NEW_VERSION) is 1, creating initial appspec file for $func_name..."
               
               # Read the appspec.yml file
               APPSPEC_FILE="appspec.yml"
               APPSPEC_OUTPUT_FILE="appspec_${func_name}.yml"
-              
+              CURRENT_VERSION=$PUBLISHED_VERSION
               if [ -f "$APPSPEC_FILE" ]; then
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Found appspec.yml, creating initial $APPSPEC_OUTPUT_FILE for $func_name..."
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Found appspec.yml, creating initial $APPSPEC_OUTPUT_FILE for $func_name..."
                 
                 # Copy appspec.yml to function-specific file
                 cp "$APPSPEC_FILE" "$APPSPEC_OUTPUT_FILE"
                 
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name"
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Initial deployment - keeping placeholders in $APPSPEC_OUTPUT_FILE"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Initial deployment - keeping placeholders in $APPSPEC_OUTPUT_FILE"
                 
                 # For initial deployment, just replace the function name, keep version placeholders
                 sed -i "s/<LAMBDA_FUNCTION_NAME>/$func_name/g" "$APPSPEC_OUTPUT_FILE"
+                sed -i "s/<CURRENT_VERSION>/$CURRENT_VERSION/g" "$APPSPEC_OUTPUT_FILE"
+                sed -i "s/<PUBLISHED_VERSION>/$CURRENT_VERSION/g" "$APPSPEC_OUTPUT_FILE"
                 
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Created $APPSPEC_OUTPUT_FILE for initial deployment"
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  Contents of $APPSPEC_OUTPUT_FILE:"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Created $APPSPEC_OUTPUT_FILE for initial deployment"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Contents of $APPSPEC_OUTPUT_FILE:"
                 cat "$APPSPEC_OUTPUT_FILE"
               else
-                echo "@@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: appspec.yml not found in current directory"
               fi
             fi
             
             echo "----------------------------------------"
           fi
         done
-      - echo "@@@@@@@@@@@@@@@@@@@@@@@@@@ Lambda function deployment completed .................."
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@ Lambda function deployment completed .................."
+
 artifacts:
   files:
     - "appspec_fetch_order.yml"
