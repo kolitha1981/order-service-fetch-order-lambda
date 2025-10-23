@@ -1,9 +1,16 @@
 version: 0.0
 Resources:
-  - OrderServiceFunction:
+  - fetch_order:
       Type: AWS::Lambda::Function
       Properties:
-        Name: "<LAMBDA_FUNCTION_NAME>"
+        Name: "fetch_order"
+        Alias: "latest"
+        CurrentVersion: "<CURRENT_VERSION>"
+        TargetVersion: "<PUBLISHED_VERSION>"
+  - save_order:
+      Type: AWS::Lambda::Function
+      Properties:
+        Name: "save_order"
         Alias: "latest"
         CurrentVersion: "<CURRENT_VERSION>"
         TargetVersion: "<PUBLISHED_VERSION>"
