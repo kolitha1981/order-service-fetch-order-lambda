@@ -15,11 +15,5 @@ Resources:
         CurrentVersion: "<CURRENT_VERSION>"
         TargetVersion: "<PUBLISHED_VERSION>"
 Hooks:
-  BeforeAllowTraffic:
-    - Location: "check-before-allow-traffic"
-      Type: "Lambda"
-      Timeout: 300
-  AfterAllowTraffic:
-    - Location: "check-after-allow-traffic"
-      Type: "Lambda"
-      Timeout: 300
+  - BeforeAllowTraffic: "check-before-allow-traffic"
+  - AfterAllowTraffic: "check-after-allow-traffic"
