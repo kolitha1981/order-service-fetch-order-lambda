@@ -179,9 +179,9 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updating appspec_working.yml for function $func_name..."
             awk -v func="$func_name" -v current="$CURRENT_VERSION" -v target="$PUBLISHED_VERSION" '
             BEGIN { in_function = 0 }
-            /^  [a-z_]+:$/ { 
-              # Match function name as a key (e.g., "  fetch_order:" or "  save_order:")
-              func_key = $1
+            /^  - [a-z_]+:$/ { 
+              # Match function name as a list item (e.g., "  - fetch_order:" or "  - save_order:")
+              func_key = $2
               sub(/:$/, "", func_key)  # Remove trailing colon
               if (func_key == func) {
                 in_function = 1
