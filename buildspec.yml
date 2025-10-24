@@ -143,6 +143,16 @@ phases:
             
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Successfully published version $PUBLISHED_VERSION for $func_name"
             
+            # Wait for the version to be fully created and active
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for version $PUBLISHED_VERSION to be active..."
+            aws lambda wait function-active-v2 \
+              --function-name "$func_name:$PUBLISHED_VERSION" \
+              --region "$AWS_REGION" 2>/dev/null || \
+            aws lambda wait function-active \
+              --function-name "$func_name" \
+              --region "$AWS_REGION"
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Version $PUBLISHED_VERSION is now active"
+            
             # Create alias if it doesn't exist
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Checking if 'latest' alias exists..."
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Executing: aws lambda get-alias --function-name \"$func_name\" --name latest --region \"$AWS_REGION\""
@@ -159,8 +169,45 @@ phases:
                 --function-version "$PUBLISHED_VERSION" \
                 --region "$AWS_REGION"
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Created alias 'latest' pointing to version $PUBLISHED_VERSION"
+              
+              # Wait for alias to be fully created by verifying it exists
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for alias 'latest' to be fully created..."
+              max_attempts=10
+              attempt=0
+              while [ $attempt -lt $max_attempts ]; do
+                set +e
+                aws lambda get-alias \
+                  --function-name "$func_name" \
+                  --name latest \
+                  --region "$AWS_REGION" > /dev/null 2>&1
+                alias_exists=$?
+                set -e
+                
+                if [ $alias_exists -eq 0 ]; then
+                  echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' is now active"
+                  break
+                fi
+                
+                attempt=$((attempt + 1))
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for alias creation... (attempt $attempt/$max_attempts)"
+                  sleep 2
+                else
+                  echo "@@@@@@@@@@@@@@@@@@@@@@@@  WARNING: Alias creation verification timed out"
+                fi
+              done
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), skipping creation..."
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), updating to version $PUBLISHED_VERSION..."
+              aws lambda update-alias \
+                --function-name "$func_name" \
+                --name latest \
+                --function-version "$PUBLISHED_VERSION" \
+                --region "$AWS_REGION"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to point to version $PUBLISHED_VERSION"
+              
+              # Wait to ensure alias update is complete
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for alias update to complete..."
+              sleep 3
             fi
             
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
