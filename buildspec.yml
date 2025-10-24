@@ -253,6 +253,9 @@ phases:
       - echo "@@@@@@@@@@@@@@@@@@@@@@@@ Final appspec.yml contents:"
       - mv appspec_working.yml appspec.yml
       - cat appspec.yml
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting 5 minutes for AWS to propagate all changes..."
+      - sleep 300
+      - echo "@@@@@@@@@@@@@@@@@@@@@@@@  Wait complete. Ready for deployment."
 
 artifacts:
   files:
