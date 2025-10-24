@@ -133,7 +133,7 @@ phases:
             fi
             
             # Publish new version
-            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name..."
+            echo "@@@@@@@@@@@@@@@@@@@@@@@@  Publishing version $NEW_VERSION for $func_name... "
             PUBLISHED_VERSION=$(aws lambda publish-version \
               --function-name "$func_name" \
               --description "Version $NEW_VERSION of $func_name - Deployed via CodeBuild" \
