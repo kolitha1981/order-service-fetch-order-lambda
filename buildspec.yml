@@ -197,17 +197,8 @@ phases:
                 fi
               done
             else
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), updating to version $PUBLISHED_VERSION..."
-              aws lambda update-alias \
-                --function-name "$func_name" \
-                --name latest \
-                --function-version "$PUBLISHED_VERSION" \
-                --region "$AWS_REGION"
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to point to version $PUBLISHED_VERSION"
-              
-              # Wait to ensure alias update is complete
-              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for alias update to complete..."
-              sleep 3
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE)"
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias will be updated to CURRENT_VERSION after version calculation for CodeDeploy traffic shifting"
             fi
             
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Version management completed for $func_name"
@@ -217,6 +208,49 @@ phases:
             if [ "$NEW_VERSION" -gt 1 ]; then
               CURRENT_VERSION=$((PUBLISHED_VERSION - 1))
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name - Current Version: $CURRENT_VERSION, Published Version: $PUBLISHED_VERSION"
+              
+              # If alias exists and this is not the first deployment, ensure alias points to CURRENT_VERSION
+              # so CodeDeploy can shift traffic from CURRENT_VERSION to PUBLISHED_VERSION
+              if [ $ALIAS_CHECK_EXIT_CODE -eq 0 ]; then
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Setting alias to CURRENT_VERSION ($CURRENT_VERSION) for CodeDeploy traffic shifting..."
+                aws lambda update-alias \
+                  --function-name "$func_name" \
+                  --name latest \
+                  --function-version "$CURRENT_VERSION" \
+                  --region "$AWS_REGION"
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' now points to CURRENT_VERSION $CURRENT_VERSION"
+                
+                # Verify the alias is pointing to the current version
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  Verifying alias points to CURRENT_VERSION..."
+                max_attempts=10
+                attempt=0
+                while [ $attempt -lt $max_attempts ]; do
+                  set +e
+                  ALIAS_VERSION=$(aws lambda get-alias \
+                    --function-name "$func_name" \
+                    --name latest \
+                    --region "$AWS_REGION" \
+                    --query 'FunctionVersion' \
+                    --output text 2>/dev/null)
+                  get_alias_result=$?
+                  set -e
+                  
+                  if [ $get_alias_result -eq 0 ] && [ "$ALIAS_VERSION" = "$CURRENT_VERSION" ]; then
+                    echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' verified to point to CURRENT_VERSION $CURRENT_VERSION"
+                    break
+                  fi
+                  
+                  attempt=$((attempt + 1))
+                  if [ $attempt -lt $max_attempts ]; then
+                    echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias points to version $ALIAS_VERSION, expected $CURRENT_VERSION. Retrying... (attempt $attempt/$max_attempts)"
+                    sleep 3
+                  else
+                    echo "@@@@@@@@@@@@@@@@@@@@@@@@  ERROR: Alias verification failed. Alias points to version $ALIAS_VERSION but should point to $CURRENT_VERSION"
+                    exit 1
+                  fi
+                done
+                echo "@@@@@@@@@@@@@@@@@@@@@@@@  CodeDeploy will shift traffic from version $CURRENT_VERSION to version $PUBLISHED_VERSION"
+              fi
             else
               CURRENT_VERSION=$PUBLISHED_VERSION
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Function: $func_name - Initial deployment - Current Version: $CURRENT_VERSION, Published Version: $PUBLISHED_VERSION"
