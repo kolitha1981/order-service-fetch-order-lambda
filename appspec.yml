@@ -7,13 +7,7 @@ Resources:
         Alias: "latest"
         CurrentVersion: "<CURRENT_VERSION>"
         TargetVersion: "<PUBLISHED_VERSION>"
-  - save_order:
-      Type: AWS::Lambda::Function
-      Properties:
-        Name: "save_order"
-        Alias: "latest"
-        CurrentVersion: "<CURRENT_VERSION>"
-        TargetVersion: "<PUBLISHED_VERSION>"
 Hooks:
   - BeforeAllowTraffic: "check-before-allow-traffic"
   - AfterAllowTraffic: "check-after-allow-traffic"
+

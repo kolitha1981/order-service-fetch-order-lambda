@@ -179,8 +179,11 @@ phases:
             echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updating appspec_working.yml for function $func_name..."
             awk -v func="$func_name" -v current="$CURRENT_VERSION" -v target="$PUBLISHED_VERSION" '
             BEGIN { in_function = 0 }
-            /^  - / { 
-              if ($2 == func ":") {
+            /^  [a-z_]+:$/ { 
+              # Match function name as a key (e.g., "  fetch_order:" or "  save_order:")
+              func_key = $1
+              sub(/:$/, "", func_key)  # Remove trailing colon
+              if (func_key == func) {
                 in_function = 1
               } else {
                 in_function = 0
@@ -188,10 +191,10 @@ phases:
             }
             {
               if (in_function && /CurrentVersion:/) {
-                sub(/<CURRENT_VERSION>/, current)
+                sub(/"<CURRENT_VERSION>"/, "\"" current "\"")
               }
               if (in_function && /TargetVersion:/) {
-                sub(/<PUBLISHED_VERSION>/, target)
+                sub(/"<PUBLISHED_VERSION>"/, "\"" target "\"")
               }
               print
             }' appspec_working.yml > appspec_temp.yml && mv appspec_temp.yml appspec_working.yml
