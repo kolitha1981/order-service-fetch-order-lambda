@@ -198,11 +198,6 @@ phases:
               done
             else
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Alias 'latest' already exists (exit code: $ALIAS_CHECK_EXIT_CODE), updating to version $PUBLISHED_VERSION..."
-              aws lambda update-alias \
-                --function-name "$func_name" \
-                --name latest \
-                --function-version "$PUBLISHED_VERSION" \
-                --region "$AWS_REGION"
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Updated alias 'latest' to point to version $PUBLISHED_VERSION"
               
               # Wait to ensure alias update is complete
@@ -253,6 +248,7 @@ phases:
       - echo "@@@@@@@@@@@@@@@@@@@@@@@@ Final appspec.yml contents:"
       - mv appspec_working.yml appspec.yml
       - cat appspec.yml
+      - sleep 180  # Sleep for 3 minutes to ensure consistency before deployment
 
 artifacts:
   files:
