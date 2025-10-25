@@ -248,7 +248,6 @@ phases:
       - echo "@@@@@@@@@@@@@@@@@@@@@@@@ Final appspec.yml contents:"
       - mv appspec_working.yml appspec.yml
       - cat appspec.yml
-      - sleep 180  # Sleep for 3 minutes to ensure consistency before deployment
 
 artifacts:
   files:
