@@ -7,3 +7,6 @@ Resources:
         Alias: "latest"
         CurrentVersion: "<CURRENT_VERSION>"
         TargetVersion: "<PUBLISHED_VERSION>"
+Hooks:
+  - BeforeAllowTraffic: "check-before-allow-traffic"
+  - AfterAllowTraffic: "check-after-allow-traffic"
