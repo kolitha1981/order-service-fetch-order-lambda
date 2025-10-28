@@ -104,8 +104,8 @@ phases:
                 --zip-file "fileb://${zip_file_abs}" \
                 --timeout 120 \
                 --memory-size 256 \
+                --reserved-concurrent-executions 10 \
                 --region "$AWS_REGION" \
-                --environment Variables="{TABLE_NAME=Orders,DEPLOYED_AWS_REGION=$AWS_REGION}" \
                 --description "Order service Lambda function for $func_name"
               
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
