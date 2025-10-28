@@ -104,13 +104,18 @@ phases:
                 --zip-file "fileb://${zip_file_abs}" \
                 --timeout 120 \
                 --memory-size 256 \
-                --reserved-concurrent-executions 10 \
                 --region "$AWS_REGION" \
                 --description "Order service Lambda function for $func_name"
               
               echo "@@@@@@@@@@@@@@@@@@@@@@@@  Waiting for function creation to complete..."
               aws lambda wait function-active \
                 --function-name "$func_name" \
+                --region "$AWS_REGION"
+              
+              echo "@@@@@@@@@@@@@@@@@@@@@@@@  Setting reserved concurrent executions to 10..."
+              aws lambda put-function-concurrency \
+                --function-name "$func_name" \
+                --reserved-concurrent-executions 10 \
                 --region "$AWS_REGION"
             fi
             
