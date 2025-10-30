@@ -61,7 +61,7 @@ phases:
             ls -lh "$zip_file_abs"
             
             # Convert function name to handler format (replace _ with -)
-            handler_name=$(echo "$func_name" | tr '_' '-')
+            handler_name="$func_name"
             
             # Deploy Lambda function
             echo "Deploying Lambda function: $func_name"
